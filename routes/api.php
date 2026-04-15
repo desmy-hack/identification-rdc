@@ -1,31 +1,33 @@
 <?php
-use App\Http\Middleware\ForceJsonResponse;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\CitizenController;
-use App\Http\Controllers\Api\AuthController;
 
-// 🔓 ROUTES PUBLIQUES (temporaire pour test)
-Route::get('/citizens', [CitizenController::class, 'index']);
-Route::get('/citizens/{citizen}', [CitizenController::class, 'show']);
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CitizenController;
+
+
+// --- ROUTES PUBLIQUES 
 Route::post('/login', [AuthController::class, 'login']);
-// 🔒 ROUTES PROTÉGÉES
+Route::post('/send-otp', [CitizenController::class, 'sendVerificationCode']);
+Route::post('/confirm-identity', [CitizenController::class, 'confirmAndRegister']);
+
+// --- ROUTES PROTÉGÉES 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/citizens', [CitizenController::class, 'store']);
-    Route::put('/citizens/{citizen}', [CitizenController::class, 'update']);
-    Route::delete('/citizens/{citizen}', [CitizenController::class, 'destroy']);
+    
+    // Déconnexion
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Gestion des Citoyens (Accès Agents/Admins)
+    Route::get('/citizens', [CitizenController::class, 'index']);
+    Route::get('/citizens/{id}', [CitizenController::class, 'show']);
+    Route::post('/citizens', [CitizenController::class, 'store']); // Enrôlement
+    Route::delete('/citizens/{id}', [CitizenController::class, 'destroy']); // Réservé Admin normalement
+
+    // Création de compte Agent/Admin (Réservé Admin)
+    Route::post('/admin/register-staff', [AuthController::class, 'register']);
 });
 
-
-Route::middleware([ForceJsonResponse::class])->group(function () {
-    // 🔓 ROUTES PUBLIQUES
-    Route::get('/citizens', [CitizenController::class, 'index']);
-    Route::get('/citizens/{citizen}', [CitizenController::class, 'show']);
-    Route::post('/login', [AuthController::class, 'login']);
-
-    // 🔒 ROUTES PROTÉGÉES
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::post('/citizens', [CitizenController::class, 'store']);
-        Route::put('/citizens/{citizen}', [CitizenController::class, 'update']);
-        Route::delete('/citizens/{citizen}', [CitizenController::class, 'destroy']);
-    });
+// Retourne les infos de l'utilisateur connecté
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
 });

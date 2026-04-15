@@ -1,58 +1,62 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\CitizenController;
+use App\Http\Controllers\AgentController;
+use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use App\Models\User;
 
-// Page d'accueil
 Route::get('/', function () {
-    return view('welcome');
-});
+    if (auth()->check()) {
+        if (auth()->user()->role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        } elseif (auth()->user()->role === 'agent') {
+            return redirect()->route('agent.dashboard');
+        }
+        return redirect()->route('dashboard'); 
+    }
+    return redirect()->route('login');
+})->name('welcome');
 
-// Dashboard protégé
-Route::get('/dashboard', function () {
-    return "Connecté en tant que : " . Auth::user()->name;
-})->middleware(['auth', 'verified'])->name('dashboard');
 
-// Routes profil
 Route::middleware('auth')->group(function () {
+    
+    // Gestion du Profil (Le "Sas de sécurité")
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+
+Route::post('/logout', function (\Illuminate\Http\Request $request) {
+    Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+    return redirect('/'); 
+})->name('logout');
 });
 
-// Route pour login automatique
-Route::get('/test-login/{id}', function ($id) {
-    $user = App\Models\User::find($id);
+Route::middleware(['auth', 'force.password'])->group(function () {
 
-    if (!$user) {
-        return "Utilisateur non trouvé";
-    }
+    Route::get('/dashboard', [CitizenController::class, 'index'])->name('dashboard');
 
-    DB::table('sessions')->where('user_id', $user->id)->delete();
+ 
+    Route::get('/ma-carte', [CitizenController::class, 'showMyCard'])->name('citizen.my-card');
+    Route::get('/card/{id}', [CitizenController::class, 'generateCard'])->name('citizen.card');
 
-    // Connexion utilisateur
-    Auth::login($user);
 
-    // Nouvelle session sécurisée
-    session()->regenerate();
-    session()->save();
+    Route::middleware(['agent'])->prefix('agent')->name('agent.')->group(function () {
+        Route::get('/dashboard', [AgentController::class, 'index'])->name('dashboard');
+        Route::get('/enrollement', [AgentController::class, 'create'])->name('create');
+        Route::post('/enrollement', [AgentController::class, 'store'])->name('store');
+    });
 
-    return [
-        'message' => "Utilisateur connecté : " . Auth::user()->name,
-        'sessions' => DB::table('sessions')->get()
-    ];
+ 
+    Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+        Route::get('/statistiques', [AdminController::class, 'stats'])->name('stats');
+        Route::post('/promote', [AdminController::class, 'promote'])->name('promote');
+    });
 });
 
-Route::get('/profile/{id}', function ($id) {
-    $user = User::find($id);
-    if (!$user) {
-        abort(404, "Utilisateur non trouvé.");
-    }
-    return view('profile', ['user' => $user]);
-})->middleware('auth');
-
-// Auth routes
 require __DIR__.'/auth.php';

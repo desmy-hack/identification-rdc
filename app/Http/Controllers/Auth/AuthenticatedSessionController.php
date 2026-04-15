@@ -22,13 +22,34 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
+/**
+     * Handle an incoming authentication request.
+        */
+
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = $request->user();
+        $roleHint = $request->input('role_hint');
+
+        // 1. ADMIN : Toujours vers son dashboard
+        if ($user->role === 'admin') {
+            return redirect()->route('admin.dashboard'); // On retire intended()
+        }
+
+        // 2. AGENT : On respecte scrupuleusement son choix d'onglet
+        if ($user->role === 'agent') {
+            if ($roleHint === 'agent') {
+                return redirect()->route('agent.dashboard');
+            }
+            // S'il a choisi citoyen ou rien, on l'envoie sur le dashboard citoyen
+            return redirect()->route('dashboard');
+        }
+
+        // 3. CITOYEN : Toujours vers son dashboard
+        return redirect()->route('dashboard');
     }
 
     /**

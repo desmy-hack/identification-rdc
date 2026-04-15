@@ -6,25 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('national_id')->unique()->nullable();
-            $table->string('phone')->nullable();
-            $table->string('address')->nullable();
-            $table->string('photo')->nullable();
+            
+            $table->string('national_id', 11)->unique()->nullable();
+            
+           
+            $table->string('role')->default('citizen'); 
+
+            $table->foreign('national_id')->references('national_id')->on('citizens')->onDelete('set null');
         });
     }
-    /**
-     * Reverse the migrations.
-     */
+
     public function down()
     {
-    	Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['national_id', 'phone', 'address', 'photo']);
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropForeign(['national_id']);
+            $table->dropColumn(['national_id', 'role']);
         });
     }
 };
